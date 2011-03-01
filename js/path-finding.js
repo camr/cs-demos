@@ -7,16 +7,50 @@ var map = [
 ];
 
 var bot = {
-    destination: [],
+    destination: 0,
     position: [],
     node: 0,
     path: [],
 
     build_path: function() {
+        var p = [bot.node];
+        var current_node = bot.node;
+
+        var potentials = []; // list of indices into map
+        $.each(map, function(idx) {
+            if (this[3].length === 0 && idx !== bot.node) {
+                potentials.push(idx);
+            }
+        });
+
+        while (current_node !== bot.destination && potentials.length > 0) {
+            var neighbors = nearest_neighbors(current_node, potentials, 5);
+
+            for (var i = 0; i < neighbors.length; i++) {
+                var np = neighbors[i][0];
+                if (is_path_clear(map[current_node], map[np])) {
+                    p.push(np);
+                    current_node = potentials[np];
+                    potentials.splice(np, 1);
+                    break;
+                }
+            }
+        }
+
+        this.path = [];
+        $.each(p, function() {
+            bot.path.push([map[this][0], map[this][1]]);
+        });
+
+
+        return;
+
+
+        // A* (not working)
         this.path = [this.position];
         var dir = [
-            this.destination[0] - this.position[0],
-            this.destination[1] - this.position[1]
+            //this.destination[0] - this.position[0],
+            //this.destination[1] - this.position[1]
         ];
 
         var potentials = [];
@@ -32,7 +66,7 @@ var bot = {
         var done = false;
         while (!done) {
             var G = open_set[0][1];
-            var H = distance(bot.destination, map[open_set[0][0]]);
+            //var H = distance(bot.destination, map[open_set[0][0]]);
 
             var prev_node = open_set[0];
             var prev_node_index = 0;
@@ -40,7 +74,7 @@ var bot = {
             // find the minimum distance in the open set
             $.each(open_set, function(idx) {
                 var this_G = this[1];
-                var this_H = distance(bot.destination, map[this[0]]);
+                //var this_H = distance(bot.destination, map[this[0]]);
 
                 if (this_G + this_H < G + H) {
                     G = this_G;
@@ -109,9 +143,9 @@ var bot = {
                     }
                 }
 
-                if (map[n[0]][0] == bot.destination[0] && map[n[0]][1] == bot.destination[1]) {
-                    done = true;
-                }
+                //if (map[n[0]][0] == bot.destination[0] && map[n[0]][1] == bot.destination[1]) {
+                    //done = true;
+                //}
             });
 
             closed_set.push(prev_node);
@@ -122,10 +156,13 @@ var bot = {
         console.log('closed_set: ' + closed_set);
     },
 
+    // update
     update: function() {
     },
 
+    // draw
     draw: function(ctx) {
+        // bot
         ctx.fillStyle = '#F00';
         ctx.beginPath();
         ctx.moveTo(this.position[0] + 10, this.position[1] - 10);
@@ -135,12 +172,16 @@ var bot = {
         ctx.closePath();
         ctx.fill();
 
+        // destination
         ctx.fillStyle = '#F00';
         ctx.beginPath();
-        ctx.arc(this.destination[0], this.destination[1], 10, 0, Math.PI*2, true);
+        ctx.arc(map[this.destination][0],
+                map[this.destination][1],
+                map[this.destination][2], 0, Math.PI*2, true);
         ctx.closePath();
         ctx.fill();
 
+        // path
         ctx.strokeStyle = '#0F0';
         ctx.beginPath();
         ctx.moveTo(this.position[0], this.position[1]);
@@ -163,17 +204,59 @@ var bot = {
             }
         });
     },
-};
+}
 
 
 function distance(a, b) {
     return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
-};
+}
 
 
 function dot_product(a, b) {
     return (a[0]*b[0]) + (a[1]*b[1]);
-};
+}
+
+
+function nearest_neighbors(node, potentials, k) {
+    var neighbors = []; // [potentials index, distance to next_node]
+
+    $.each(potentials, function(pot_index) {
+        var map_index = this;
+
+        if (map[map_index][3].length !== 0) {
+            // node contains obstacles
+            return;
+        }
+
+        var dist_to_point = distance(map[node], map[map_index]);
+
+        // prime our list with the first five nodes we find
+        if (neighbors.length < k) {
+            neighbors.push([pot_index, dist_to_point]);
+            return;
+        }
+
+        // check to see if the current node is closer than
+        // any we've found before.  If it is, find the largest
+        // distance in our neighbor set.
+        var max = 0;
+        var replace = -1;
+        $.each(neighbors, function(i) {
+            if (dist_to_point < this[1] && this[1] > max && map_index !== node) {
+                max = this[1];
+                replace = i
+            }
+        });
+
+        // if we found a closer node, update the neighbor list
+        if (replace >= 0) {
+            neighbors[replace][0] = pot_index;
+            neighbors[replace][1] = dist_to_point;
+        }
+    });
+
+    return neighbors;
+}
 
 
 function circle_collision(c1, c2) {
@@ -300,7 +383,7 @@ function build_map(canvas) {
     while (failures < 500) {
         var x = Math.floor(Math.random() * canvas.width);
         var y = Math.floor(Math.random() * canvas.height);
-        var r = 10;
+        var r = 10; //Math.floor(Math.random() * 20) + 5;
 
         good = true;
         $.each(map, function() {
@@ -343,7 +426,7 @@ function place_destination() {
     for (var i = 0; i < map.length; i++) {
         var x = Math.floor(Math.random() * map.length);
         if (map[x][3].length == 0) {
-            bot.destination = [map[x][0], map[x][1]];
+            bot.destination = x;
             return;
         }
     }
@@ -361,6 +444,8 @@ $(function() {
         place_bot();
         place_destination();
 
+        bot.build_path();
+
         clear_screen();
         draw_scene();
         draw_map();
@@ -372,9 +457,7 @@ $(function() {
     place_bot();
     place_destination();
 
-    console.log('Path pre-build: ' + bot.path);
     bot.build_path();
-    console.log('Path post-build: ' + bot.path);
 
     clear_screen();
     draw_scene();
