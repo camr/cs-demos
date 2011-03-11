@@ -1,25 +1,8 @@
-class Vector
-    constructor: (@x, @y) ->
-
-    add: (vec) ->
-        @x += vec.x
-        @y += vec.y
-
-        this
-
-    cross: (vec) ->
-        (@x*vec.y) - (@y - vec.x)
-
-    divideBy: (scalar) ->
-        @x /= scalar
-        @y /= scalar
-
-        this
-
-
 class Pendulum
     constructor: (canvas) ->
-        @anchor = new Vector(canvas.width / 2, 5)
+        @anchor =
+            x: canvas.width / 2
+            y: 25
 
         @length = 200
         @damping = 0.995
@@ -32,17 +15,18 @@ class Pendulum
         @context = canvas.getContext '2d'
 
     draw: ->
-        @weight = new Vector(@length*Math.cos(@theta), @length*Math.sin(@theta))
-        @weight.add(@anchor)
+        weight =
+            x: (@length * Math.cos @theta) + @anchor.x
+            y: (@length * Math.sin @theta) + @anchor.y
 
         @context.save()
         @context.translate @anchor.x, @anchor.y
         @context.rotate -(Math.PI / 2)
         @context.translate -@anchor.x, -@anchor.y
 
-        @drawLine @anchor, @weight
+        @drawLine @anchor, weight
         @drawCircle @anchor, 3
-        @drawCircle @weight, 20
+        @drawCircle weight, 20
 
         @context.restore()
 
