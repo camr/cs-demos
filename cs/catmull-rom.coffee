@@ -5,6 +5,7 @@ mouseX = 0
 mouseY = 0
 mouseDown = false
 mouseDragging = -1
+dragDistance = 0
 
 $ ->
     smoothed_line = smooth_line original_line
@@ -28,13 +29,15 @@ $ ->
         mouseX = event.pageX - $(this).offset().left
         mouseY = event.pageY - $(this).offset().top
 
-        if mouseDragging >= 0
-            update_drag original_line
-        else
+        if event.shiftKey and dragDistance < 5
+            remove_point mouseX, mouseY
+        else if mouseDragging < 0
             add_point mouseX, mouseY
 
         mouseDown = false
         mouseDragging = -1
+        dragDistance = 0
+
 
     $('#reset_button').click ->
         original_line = [[10, 100], [490, 150]]
@@ -62,6 +65,8 @@ check_drag = (line) ->
 # Updates the position of the currently dragged point,
 #  recalculates the smooth line and redraws the scene.
 update_drag = (line) ->
+    dragDistance += Math.abs(mouseX - line[mouseDragging][0]) + Math.abs(mouseY - line[mouseDragging][1])
+
     line[mouseDragging][0] = mouseX
     line[mouseDragging][1] = mouseY
 
@@ -70,35 +75,63 @@ update_drag = (line) ->
     draw_scene()
 
 
-# Similar to check_drag, except this returns the closest point
-#  in original_line regardless of distance threshold
-find_closest_point = (x, y) ->
-    found = 0
-    found_distance = Math.abs(x - original_line[0][0]) + Math.abs(y - original_line[0][1])
-
-    for i in [1..original_line.length - 1]
-        dx = Math.abs x - original_line[i][0]
-        dy = Math.abs y - original_line[i][1]
-
-        if dx + dy < found_distance
-            found = i
-            found_distance = dx + dy
-
-    return found
-
-
 # Adds a point to original_line at [x, y]
 #  Attempts to find an 'accurate' position for the point
 add_point = (x, y) ->
-    start = find_closest_point x, y
+    closest_point = 0
+    closest_dist = 5000 # cheat, whaetevs
+    for i in [0..original_line.length - 2]
+        start = i
+        end = start + 1
+
+        vx = original_line[start][0] - x
+        vy = original_line[start][1] - y
+        ux = original_line[end][0] - original_line[start][0]
+        uy = original_line[end][1] - original_line[start][1]
+
+        length = ux*ux + uy*uy
+        det = (-vx*ux) + (-vy*uy)
+
+        if det >= 0 and det <= length
+            det = ux*vy - uy*vx
+            dist = (det *det) / length
+            if dist < closest_dist
+                closest_point = start
+                closest_dist = dist
+
 
     new_line = []
     for pt, i in original_line
         new_line.push pt
-        if i == start
+        if i == closest_point
             new_line.push [x, y]
 
     original_line = new_line
+    smoothed_line = smooth_line original_line
+
+    draw_scene()
+
+
+# Attempts to remove a point from original_line close to [x, y]
+remove_point = (x, y) ->
+    # Safety check
+    if original_line.length == 2
+        return
+
+    found = -1
+    found_distance = 0
+    for pt, i in original_line
+        dx = Math.abs mouseX - pt[0]
+        dy = Math.abs mouseY - pt[1]
+
+        if (dx < 5 && dy < 5) && (found < 0 || (dx + dy < found_distance))
+            found = i
+            found_distance = dx + dy
+
+    if found < 0
+        return
+
+    original_line.splice found, 1
     smoothed_line = smooth_line original_line
 
     draw_scene()
