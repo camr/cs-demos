@@ -80,11 +80,25 @@ class Emitter
 
         @particles = []
         @active = true
+        @dead = false
+
+        @respawn_rate = RESPAWN_RATE
 
         # Prime the emitter
-        (@particles.push(new Particle @position, @settings, @context) for i in [1..RESPAWN_RATE])
+        (@particles.push(new Particle @position, @settings, @context) for i in [1..@respawn_rate])
+
+    stop: ->
+        @respawn_rate = 0
+        @active = false
 
     update: ->
+        if @dead
+            return
+
+        if not @active and @particles.length == 0
+            @dead = true
+            return
+
         remove_list = []
 
         for particle, i in @particles
@@ -95,14 +109,15 @@ class Emitter
         for idx in remove_list
             @particles.splice idx, 1
 
-        if @active
-            spawn_count = if @particles.length < MAX_PARTICLES then Math.min(MAX_PARTICLES - @particles.length, RESPAWN_RATE) else 0
+        if @active and @respawn_rate > 0
+            spawn_count = if @particles.length < MAX_PARTICLES then Math.min(MAX_PARTICLES - @particles.length, @respawn_rate) else 0
 
-            for i in [1..spawn_count]
+            for i in [0..spawn_count - 1]
                 @particles.push(new Particle @position, @settings, @context)
 
     draw: ->
         (p.draw() for p in @particles)
+
 
 clear_screen = (canvas) ->
     context = canvas.getContext '2d'
@@ -124,6 +139,11 @@ $ ->
         settings = [explosion, fountain, clown_puke][Math.floor(Math.random() * 3)]
 
         emitters.push(new Emitter [mouseX, mouseY], settings, context)
+        if emitters.length > 10
+            for em in emitters
+                if em.active
+                    em.stop()
+                    break
 
     $('#reset_button').click ->
         emitter.reset canvas.width, canvas.height
@@ -132,4 +152,12 @@ $ ->
         clear_screen canvas
         (em.draw() for em in emitters)
         (em.update() for em in emitters)
+
+        kill_list = []
+        for em, i in emitters
+            if em.dead
+                kill_list.push(i)
+
+        for i in kill_list
+            emitters.splice(i, 1)
 
