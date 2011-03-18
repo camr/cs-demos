@@ -7,6 +7,9 @@ mouseDown = false
 mouseDragging = -1
 dragDistance = 0
 
+drawPoints = true
+drawOriginalLine = true
+
 $ ->
     smoothed_line = smooth_line original_line
     draw_scene()
@@ -45,6 +48,15 @@ $ ->
 
         draw_scene()
 
+    $('#toggle_points').click ->
+        drawPoints = not drawPoints
+        draw_scene()
+
+    $('#toggle_line').click ->
+        drawOriginalLine = not drawOriginalLine
+        draw_scene()
+
+
 # Checks to see if the mouse position is close
 # to a point in line.  If it is, the function returns
 # the index into the line of that point, -1 otherwise
@@ -65,6 +77,9 @@ check_drag = (line) ->
 # Updates the position of the currently dragged point,
 #  recalculates the smooth line and redraws the scene.
 update_drag = (line) ->
+    if mouseDragging < 0
+        return
+
     dragDistance += Math.abs(mouseX - line[mouseDragging][0]) + Math.abs(mouseY - line[mouseDragging][1])
 
     line[mouseDragging][0] = mouseX
@@ -140,9 +155,13 @@ remove_point = (x, y) ->
 # Draw the entire scene
 draw_scene = ->
     clear_screen()
-    draw_line original_line, [0, 0, 0, 0.3]
+    if drawOriginalLine
+        draw_line original_line, [0, 0, 0, 0.3]
+
     draw_line smoothed_line, [0, 0, 0, 1.0]
-    draw_points original_line
+
+    if drawPoints
+        draw_points original_line
 
 
 # Clear the drawing context
