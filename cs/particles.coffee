@@ -146,7 +146,8 @@ $ ->
                     break
 
     $('#reset_button').click ->
-        emitter.reset canvas.width, canvas.height
+        for em in emitters
+            em.stop()
 
     $.timer 50, ->
         clear_screen canvas
