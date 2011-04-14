@@ -198,10 +198,11 @@ draw_points = (line) ->
     context = $('#cv')[0].getContext '2d'
 
     context.fillStyle = '#a00'
-    context.beginPath()
-    context.arc point[0], point[1], 5, 0, Math.PI * 2, true for point in line
-    context.closePath()
-    context.fill()
+    for point in line
+        context.beginPath()
+        context.arc point[0], point[1], 5, 0, Math.PI * 2, true
+        context.closePath()
+        context.fill()
 
 
 # Returns a new line of points smoothed according to
